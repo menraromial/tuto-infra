@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bloc4-app
+  namespace: bloc4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bloc4-app
+  template:
+    metadata:
+      labels:
+        app: bloc4-app
+    spec:
+      containers:
+        - name: app
+          # Le tag est réécrit par le pipeline CI à chaque push (GitOps) :
+          image: gitea:3000/admin/bloc4-app:init
+          ports:
+            - containerPort: 8000
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

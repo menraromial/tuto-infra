@@ -1,0 +1,30 @@
+# Secrets locaux (tokens, mots de passe) — jamais versionnés
+**/.env
+
+# Build du site MkDocs
+site/
+
+# Environnements Python
+.venv/
+__pycache__/
+
+# Données produites par les exercices (bloc 6+)
+exercices/*/data/
+
+# dbt / DuckDB (bloc 7) : le warehouse est reconstructible par "dbt run"
+*.duckdb
+*.duckdb.wal
+exercices/bloc7/target/
+exercices/bloc7/logs/
+exercices/bloc7/dbt_packages/
+
+# Terraform : le state contient l'état réel (et parfois des secrets),
+# les providers téléchargés sont lourds. Le .terraform.lock.hcl, lui,
+# SE versionne (il fige les versions des providers).
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.claude/
+
+# Cookie de télémétrie dbt
+.user.yml

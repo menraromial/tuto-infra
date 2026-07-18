@@ -1,0 +1,15 @@
+# Chaque tâche décrit un ÉTAT voulu, pas une action : c'est ce qui rend le
+# playbook idempotent (relançable sans effet si l'état est déjà atteint).
+
+- name: Installer curl (démonstration de la gestion de paquets)
+  ansible.builtin.apt:
+    name: curl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600 # ne rafraîchit le cache APT qu'une fois par heure
+
+- name: Générer la page d'accueil depuis le template Jinja2
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: "{{ web_root }}/index.html"
+    mode: "0644"

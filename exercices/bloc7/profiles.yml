@@ -1,0 +1,17 @@
+# Profil de connexion dbt : un fichier DuckDB local + l'accès S3 vers MinIO.
+# (Chargé depuis le dossier courant grâce à DBT_PROFILES_DIR=.)
+bloc7:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: warehouse.duckdb        # notre warehouse : un simple fichier
+      extensions:
+        - httpfs                    # lecture de s3:// par DuckDB
+      settings:
+        s3_endpoint: "localhost:9000"
+        s3_access_key_id: minio
+        s3_secret_access_key: minio12345
+        s3_use_ssl: false
+        s3_url_style: path          # http://localhost:9000/lake/... (pas de sous-domaine)
+        s3_region: us-east-1

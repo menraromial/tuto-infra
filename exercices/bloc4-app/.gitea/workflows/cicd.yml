@@ -1,0 +1,40 @@
+name: cicd
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag = SHA court du commit
+        run: echo "TAG=${GITHUB_SHA:0:8}" >> "$GITHUB_ENV"
+
+      - name: Build de l'image
+        # DOCKER_BUILDKIT=0 : le démon derrière la socket est Podman,
+        # qui ne parle pas BuildKit : on utilise le builder classique.
+        run: DOCKER_BUILDKIT=0 docker build --build-arg GIT_SHA=$TAG -t gitea:3000/admin/bloc4-app:$TAG .
+
+      - name: Push vers le registre Gitea
+        # Pas de "docker login" : l'endpoint compat /auth de Podman ignore la
+        # config "insecure" des registres HTTP (bug connu) et tente du HTTPS.
+        # On écrit directement le fichier d'identifiants du client : le push
+        # les transmet au démon via l'en-tête X-Registry-Auth, qui respecte
+        # bien la config du registre.
+        run: |
+          mkdir -p ~/.docker
+          AUTH=$(printf 'admin:%s' '${{ secrets.REGISTRY_PASSWORD }}' | base64 -w0)
+          printf '{"auths":{"gitea:3000":{"auth":"%s"}}}' "$AUTH" > ~/.docker/config.json
+          docker push gitea:3000/admin/bloc4-app:$TAG
+
+      - name: Mise à jour du manifest (GitOps)
+        # ArgoCD surveille deploy/ : changer le tag dans Git déclenche le
+        # déploiement. "[skip ci]" évite de relancer ce pipeline en boucle.
+        run: |
+          sed -i "s|\(image: gitea:3000/admin/bloc4-app:\).*|\1$TAG|" deploy/deployment.yaml
+          git config user.name "gitea-actions"
+          git config user.email "actions@gitea.local"
+          git commit -am "deploy: bloc4-app:$TAG [skip ci]"
+          git push

@@ -1,0 +1,26 @@
+name: lake
+
+services:
+  # MinIO : stockage objet compatible S3, auto-hébergé. C'est notre data lake.
+  # Image tirée de quay.io (le registre de MinIO) : pas de limite de pull.
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      # Identifiants racine du serveur (lab local uniquement !)
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    ports:
+      - "9000:9000"   # API S3 (endpoint pour mc, DuckDB, dbt...)
+      - "9001:9001"   # console web : http://localhost:9001
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  minio-data:

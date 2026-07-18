@@ -1,0 +1,20 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: tuto
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # NodePort 30080 (exercice bloc 3) exposé sur localhost:8088
+      - containerPort: 30080
+        hostPort: 8088
+        protocol: TCP
+      # NodePort 30081 (exercice bloc 4) exposé sur localhost:8089
+      - containerPort: 30081
+        hostPort: 8089
+        protocol: TCP
+# containerd lit la config des registres dans /etc/containerd/certs.d
+# (rempli par create-cluster.sh pour autoriser le registre HTTP de Gitea).
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.cri.v1.images".registry]
+      config_path = "/etc/containerd/certs.d"

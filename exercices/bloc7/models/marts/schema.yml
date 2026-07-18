@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: dim_clients
+    description: Dimension clients (référentiel).
+    columns:
+      - name: client_code
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_produits
+    description: Dimension produits, dérivée des évènements.
+    columns:
+      - name: produit_code
+        data_tests:
+          - unique
+          - not_null
+
+  - name: fct_commandes
+    description: >
+      Table de faits des commandes. Grain : une ligne par commande
+      (event_id). Mesures : quantite, montant.
+    columns:
+      - name: event_id
+        data_tests:
+          - unique
+          - not_null
+      - name: client_code
+        description: Clé étrangère vers dim_clients
+        data_tests:
+          - relationships:
+              to: ref('dim_clients')
+              field: client_code
+      - name: produit_code
+        description: Clé étrangère vers dim_produits
+        data_tests:
+          - relationships:
+              to: ref('dim_produits')
+              field: produit_code

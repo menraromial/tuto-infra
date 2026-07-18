@@ -1,0 +1,76 @@
+name: ingestion
+
+services:
+  # Redpanda : un broker compatible Kafka en un seul binaire (pas de ZooKeeper,
+  # pas de JVM). Toute la théorie Kafka du bloc s'applique telle quelle.
+  redpanda:
+    # Miroir Docker Hub (docker.redpanda.com proxie Docker Hub et partage sa
+    # limite de pulls anonymes ; en cas de "toomanyrequests" : podman login docker.io)
+    image: docker.io/redpandadata/redpanda:v26.1.13
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1                # 1 cœur suffit pour un lab
+      - --overprovisioned
+      - --mode=dev-container
+      - --node-id=0
+      # Deux "listeners" : interne (les autres conteneurs parlent à redpanda:9092)
+      # et externe (ta machine parle à localhost:19092).
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+    ports:
+      - "19092:19092"   # API Kafka depuis la machine hôte
+      - "18081:18081"   # schema registry (aperçu, pas utilisé dans ce bloc)
+      - "9644:9644"     # API d'administration / métriques
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health --exit-when-healthy || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 24
+
+  # Console web officielle : topics, messages, consumer groups, lag...
+  console:
+    image: docker.io/redpandadata/console:v3.8.0
+    container_name: redpanda-console
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports:
+      - "8090:8080"     # http://localhost:8090
+
+  # PostgreSQL : joue le rôle de la base "opérationnelle" source.
+  # Port 5433 côté hôte pour ne pas gêner un PostgreSQL local éventuel.
+  postgres:
+    image: docker.io/library/postgres:17-alpine
+    container_name: ingestion-postgres
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: boutique
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d boutique"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Adminer : interface web légère pour explorer PostgreSQL.
+  adminer:
+    image: docker.io/library/adminer:latest
+    container_name: ingestion-adminer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8091:8080"     # http://localhost:8091
+
+volumes:
+  pg-data:

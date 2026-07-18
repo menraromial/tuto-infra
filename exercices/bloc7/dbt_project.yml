@@ -1,0 +1,15 @@
+name: bloc7
+version: "1.0.0"
+profile: bloc7
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+
+models:
+  bloc7:
+    staging:
+      # Les vues ne stockent rien : recalculées à la demande depuis le bronze.
+      +materialized: view
+    marts:
+      # Les tables de l'étoile sont matérialisées : c'est ce qu'on interroge.
+      +materialized: table

@@ -1,0 +1,66 @@
+name: gitea
+
+networks:
+  gitea:
+    name: gitea
+  # Réseau créé par kind (bloc 3) : y attacher Gitea permet aux nœuds du
+  # cluster de résoudre "gitea:3000" (pull d'images, clone ArgoCD...).
+  # Prérequis : le cluster kind doit avoir été créé au moins une fois.
+  kind:
+    external: true
+
+services:
+  gitea:
+    image: docker.io/gitea/gitea:1.24
+    container_name: gitea
+    restart: unless-stopped
+    networks: [gitea, kind]
+    ports:
+      - "3000:3000"   # web + API + registre de conteneurs
+      - "2222:22"     # SSH (git clone/push par clé)
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      # Le nom "gitea" est résolu par les conteneurs du réseau ET par le
+      # navigateur si on ajoute "127.0.0.1 gitea" dans /etc/hosts.
+      GITEA__server__ROOT_URL: http://gitea:3000/
+      GITEA__server__SSH_DOMAIN: gitea
+      GITEA__server__SSH_PORT: "2222"
+      GITEA__server__SSH_LISTEN_PORT: "22"
+      # Saute l'assistant d'installation web : l'admin est créé en CLI.
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__actions__ENABLED: "true"
+    volumes:
+      - gitea-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  runner:
+    image: docker.io/gitea/act_runner:latest
+    container_name: gitea-runner
+    restart: unless-stopped
+    networks: [gitea]
+    depends_on:
+      gitea:
+        condition: service_healthy
+    environment:
+      GITEA_INSTANCE_URL: http://gitea:3000/
+      # Généré avec : podman exec -u git gitea gitea actions generate-runner-token
+      GITEA_RUNNER_REGISTRATION_TOKEN: ${GITEA_RUNNER_REGISTRATION_TOKEN}
+      GITEA_RUNNER_NAME: local-runner
+      CONFIG_FILE: /config.yaml
+    volumes:
+      - ./runner-config.yaml:/config.yaml:ro
+      - runner-data:/data
+      # Socket Podman rootless, montée AU MÊME CHEMIN que sur l'hôte :
+      # le runner la transmet aux conteneurs de jobs par un bind-mount dont
+      # la source est résolue côté hôte : le chemin doit donc y exister.
+      # (cf. container.docker_host dans runner-config.yaml)
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:${XDG_RUNTIME_DIR}/podman/podman.sock
+
+volumes:
+  gitea-data:
+  runner-data:

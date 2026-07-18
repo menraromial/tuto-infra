@@ -1,0 +1,6 @@
+# Exercice final du bloc 5, partie Ansible :
+#   ansible-playbook playbook.yml
+- name: Configurer les serveurs web
+  hosts: web
+  roles:
+    - webserver

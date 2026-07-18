@@ -1,0 +1,19 @@
+# Configuration du runner Gitea Actions (act_runner).
+# Référence complète : https://gitea.com/gitea/act_runner/src/branch/main/internal/pkg/config/config.example.yaml
+log:
+  level: info
+
+runner:
+  capacity: 1
+  # Image utilisée pour les jobs "runs-on: ubuntu-latest".
+  # catthehacker/ubuntu est l'image de référence compatible GitHub Actions.
+  labels:
+    - "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
+
+container:
+  # Les conteneurs de jobs rejoignent le réseau "gitea" pour pouvoir
+  # résoudre http://gitea:3000 (clone des dépôts, push d'images...).
+  network: gitea
+  # Socket que le runner utilise ET transmet aux jobs (docker build/push).
+  # C'est le chemin de la socket Podman SUR L'HÔTE (adapter l'uid si ≠ 1000).
+  docker_host: unix:///run/user/1000/podman/podman.sock

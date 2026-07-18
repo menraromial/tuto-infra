@@ -1,0 +1,4 @@
+# Valeurs par défaut du rôle : surchargées au besoin par l'inventaire
+# ou la ligne de commande (-e "web_message=...").
+web_root: /srv/www
+web_message: "Serveur configuré par Ansible"

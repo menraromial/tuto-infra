@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: bloc3
+data:
+  DB_HOST: postgres        # le nom du Service : c'est le DNS interne du cluster
+  DB_PORT: "5432"
+  DB_NAME: demo
+  DB_USER: demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: bloc3
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: localhost/bloc3-api:v1
+          # L'image est chargée avec "kind load", pas tirée d'un registre :
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: api-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 8000
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: bloc3
+spec:
+  type: NodePort
+  selector:
+    app: api
+  ports:
+    - port: 8000
+      nodePort: 30080   # exposé sur localhost:8088 (cf. infra/kind/cluster.yaml)

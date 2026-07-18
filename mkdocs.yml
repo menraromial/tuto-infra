@@ -1,0 +1,60 @@
+site_name: Socle infrastructure & data engineering
+site_description: >-
+  Parcours pratique en 10 blocs : terminal, Git, conteneurisation avec Podman,
+  CI/CD avec Gitea, IaC, ingestion, lake/warehouse, orchestration, monitoring.
+# À ajuster selon le nom réel du dépôt GitHub :
+site_url: https://menraromial.github.io/tuto-infra/
+repo_url: https://github.com/menraromial/tuto-infra
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: fr
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Passer en mode sombre
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Passer en mode clair
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+
+nav:
+  - Accueil: index.md
+  - Le plan du parcours: plan.md
+  - Blocs:
+      - "Bloc 3 : Conteneurisation (Podman, kind)": blocs/bloc3-conteneurisation.md
+      - "Bloc 4 : CI/CD avec Gitea Actions": blocs/bloc4-cicd-gitea.md
+      - "Bloc 5 : IaC (Terraform, Ansible)": blocs/bloc5-iac.md
+      - "Bloc 6 : Ingestion (Kafka, Parquet)": blocs/bloc6-ingestion.md
+      - "Bloc 7 : Lake & warehouse (MinIO, dbt)": blocs/bloc7-lake-warehouse.md
+      - "Bloc 8 : Pipelines, la vue d'ensemble": blocs/bloc8-pipelines.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  # custom_fences : transforme les blocs ```mermaid en diagrammes rendus
+  # (Material charge mermaid.js automatiquement quand cette fence est déclarée)
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      permalink: true

@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: stg_commandes
+    description: >
+      Commandes dédupliquées et typées (couche argent). Une ligne par
+      évènement métier, quel que soit le nombre de fois où le message
+      a été livré par Kafka.
+    columns:
+      - name: event_id
+        description: Identifiant unique de l'évènement (clé de déduplication)
+        data_tests:
+          - unique
+          - not_null
+      - name: client_id
+        data_tests:
+          - not_null
+      - name: quantite
+        data_tests:
+          - not_null

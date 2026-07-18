@@ -1,0 +1,20 @@
+name: localstack
+
+services:
+  localstack:
+    # Simulateur local des APIs AWS (S3, SQS, DynamoDB...), version communautaire gratuite.
+    image: docker.io/localstack/localstack:4
+    container_name: localstack
+    ports:
+      - "4566:4566"   # passerelle unique : toutes les APIs AWS sur ce port
+    environment:
+      # Limiter aux services utilisés accélère le démarrage.
+      SERVICES: s3
+      # Pas de persistance : l'état repart de zéro à chaque redémarrage
+      # (suffisant pour apprendre ; la persistance est payante de toute façon).
+      PERSISTENCE: "0"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
