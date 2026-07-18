@@ -44,6 +44,7 @@ nav:
       - "Bloc 9 : Orchestration (Airflow)": blocs/bloc9-orchestration.md
       - "Bloc 10 : Monitoring (Prometheus, Grafana)": blocs/bloc10-monitoring.md
       - "Bloc 11 : Projet MLOps (MLflow, FastAPI)": blocs/bloc11-mlops.md
+  - Libérer les ressources: liberation-ressources.md
 
 markdown_extensions:
   - admonition
