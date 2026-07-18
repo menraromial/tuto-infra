@@ -331,6 +331,138 @@ En production réelle on surveillerait aussi la distribution de chaque
 feature (le PSI, *Population Stability Index*) : retiens le principe,
 l'outillage est le même.
 
+## Déployer toute la chaîne : le pas-à-pas complet
+
+Les sections précédentes expliquent chaque brique ; voici le déroulé
+ordonné, depuis la racine du dépôt. À chaque étape, vérifie le résultat
+avant de passer à la suivante.
+
+### Étape 0 : les prérequis
+
+```bash
+# Les stacks des blocs précédents doivent tourner :
+cd infra/ingestion && podman compose up -d && cd ../..
+cd infra/lake && podman compose up -d && cd ../..
+cd infra/gitea && podman compose up -d && cd ../..
+# + le cluster kind avec ArgoCD (bloc 4), + Airflow (bloc 9)
+
+# Libère de la RAM (8 Go libres nécessaires) :
+podman stop localstack srv1 srv2 ingestion-adminer redpanda-console 2>/dev/null || true
+```
+
+### Étape 1 : des données avec des fraudes
+
+```bash
+cd exercices/bloc6
+.venv/bin/python producer.py --nombre 2000 --anomalies 0.05
+cd ../..
+podman exec -e HOME=/home/airflow airflow-scheduler \
+  airflow dags trigger pipeline_commandes
+```
+
+Vérification (attendre la fin du run dans l'UI Airflow) : la table de
+features existe et le signal est net.
+
+```bash
+duckdb exercices/bloc7/warehouse.duckdb -c \
+  "SELECT signalement_fraude, count(*), round(avg(montant),1) FROM features_commandes GROUP BY 1;"
+# false ~2700 | montant moyen ~260        true ~100 | montant moyen ~1800
+```
+
+### Étape 2 : MLflow
+
+```bash
+podman build -t localhost/tuto-mlflow:bloc11 infra/mlflow/
+
+# Le bucket des artefacts dans MinIO :
+podman run --rm --network lake_default --entrypoint sh quay.io/minio/mc:latest -c \
+  "mc alias set lake http://minio:9000 minio minio12345 >/dev/null && mc mb -p lake/mlflow"
+
+cd infra/mlflow && podman compose up -d && cd ../..
+curl -s http://localhost:5002/health    # OK
+```
+
+### Étape 3 : le premier champion
+
+```bash
+cd exercices/bloc11/entrainement
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python train.py          # auc=1.0000 ...
+.venv/bin/python promouvoir.py     # PROMU : la version 1 est le nouveau champion
+cd ../../..
+```
+
+Vérification : http://localhost:5002 → Models → score-risque : la
+version 1 porte l'alias `champion`.
+
+### Étape 4 : libérer le port de l'application
+
+```bash
+kubectl delete namespace bloc3    # l'exercice du bloc 3 rend son NodePort 30080
+```
+
+### Étape 5 : le dépôt applicatif et sa CI
+
+Dans Gitea (http://gitea:3000) : nouveau dépôt **public** `bloc11-app`
+(sans initialisation), puis Paramètres → Actions → Secrets →
+`REGISTRY_PASSWORD` (le mot de passe du compte admin). Puis :
+
+```bash
+cd exercices/bloc11-app
+git init -b main && git add -A && git commit -m "feat: app de score de risque"
+git remote add origin http://gitea:3000/admin/bloc11-app.git
+git push -u origin main
+cd ../..
+```
+
+Vérification : l'onglet Actions du dépôt montre le run (compte ~5 min de
+build la première fois), qui pousse l'image ET le commit GitOps
+`deploy: bloc11-app:<sha> [skip ci]`.
+
+### Étape 6 : le déploiement ArgoCD
+
+```bash
+kubectl apply -f infra/argocd/bloc11-app.yaml
+kubectl -n bloc11 get pods -w      # attendre 1/1 Running (Ctrl+C)
+
+curl -s http://localhost:8088/sante
+# {"statut":"ok","version_modele":"1"}
+```
+
+Ouvre le formulaire (http://localhost:8088) et joue les deux scénarios du
+mode d'emploi plus haut.
+
+### Étape 7 : le ré-entraînement orchestré
+
+```bash
+# L'image Airflow doit contenir scikit-learn et mlflow (Containerfile) :
+podman build -t localhost/tuto-airflow:bloc9 infra/airflow/
+cd infra/airflow && podman compose up -d && cd ../..
+
+podman exec -e HOME=/home/airflow airflow-scheduler \
+  airflow dags unpause entrainement_score_risque
+podman exec -e HOME=/home/airflow airflow-scheduler \
+  airflow dags trigger entrainement_score_risque
+```
+
+Vérification : dans l'UI Airflow, les 4 tâches passent au vert ; puis :
+
+```bash
+curl -s http://localhost:8088/sante
+# {"statut":"ok","version_modele":"2"}   <- nouveau champion, rechargé à chaud
+```
+
+### Étape 8 : le monitoring du modèle
+
+```bash
+cd infra/monitoring && podman compose up -d && cd ../..
+```
+
+Vérification : Prometheus (http://localhost:9095, Status → Target health)
+montre la cible `app-score-risque` **UP**, et Grafana (http://localhost:3001)
+a le dashboard « Modèle de score de risque (bloc 11) ». La chaîne complète
+est en place : place à l'exercice final.
+
 ## Exercice final : la dérive, vécue de bout en bout
 
 1. **Régime normal** : quelques prédictions via le formulaire, la part de
