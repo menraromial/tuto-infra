@@ -11,11 +11,11 @@ groups:
       # existe maintenant mais n'existait pas il y a 30 minutes.
       - alert: DagRunEchoue
         expr: >
-          (airflow_dagrun_duration_failed_count
-            - (airflow_dagrun_duration_failed_count offset 30m)) > 0
+          (airflow_dagrun_duration_failed_count{dag_id!=""}
+            - (airflow_dagrun_duration_failed_count{dag_id!=""} offset 30m)) > 0
           or
-          (airflow_dagrun_duration_failed_count
-            unless airflow_dagrun_duration_failed_count offset 30m) > 0
+          (airflow_dagrun_duration_failed_count{dag_id!=""}
+            unless airflow_dagrun_duration_failed_count{dag_id!=""} offset 30m) > 0
         labels:
           severity: critique
         annotations:

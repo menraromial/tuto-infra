@@ -84,7 +84,7 @@
    },
    "targets": [
     {
-     "expr": "sum(increase(airflow_dagrun_duration_failed_count[24h])) or vector(0)",
+     "expr": "clamp_min((sum(airflow_dagrun_duration_failed_count{dag_id!=\"\"}) - (sum(airflow_dagrun_duration_failed_count{dag_id!=\"\"} offset 24h) or vector(0))) or vector(0), 0)",
      "refId": "A",
      "legendFormat": ""
     }
