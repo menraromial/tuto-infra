@@ -11,7 +11,66 @@ DevOps appliqués aux modèles.
 Gitea + runner, ingestion, lake, Airflow, monitoring). Compte 8 Go de RAM
 libres ; ferme les stacks inutilisées (LocalStack...) avant de commencer.
 
-## 1. Le cycle de vie d'un modèle
+## 1. Le problème métier (avant toute technique)
+
+La boutique des blocs 6-10 reçoit des milliers de commandes. Certaines sont
+frauduleuses : quantités de razzia à revendre, prix manipulés. Aucun analyste
+ne peut relire chaque commande ; il faut donc **prioriser** : donner à chaque
+commande un score de risque, et ne faire vérifier par des humains que
+celles au-dessus d'un seuil. C'est exactement le rôle du modèle de ce bloc :
+un outil d'aide à la décision, pas un juge.
+
+## 2. C'est quoi, un modèle de machine learning ?
+
+Si c'est ton premier contact avec le ML, lis cette section deux fois : tout
+le reste du bloc en découle.
+
+### Une fonction apprise, pas programmée
+
+Pour détecter la fraude, l'approche classique serait d'écrire des règles à
+la main : « si quantité > 20 alors suspect ». Fragile : il faut deviner les
+seuils, les combiner, les maintenir. Le machine learning inverse la
+démarche : on fournit des **exemples étiquetés** (2800 commandes dont on
+sait, a posteriori, lesquelles étaient frauduleuses), et l'algorithme
+**apprend la règle tout seul**.
+
+```mermaid
+flowchart LR
+    subgraph AV["Programmation classique"]
+        R1["des RÈGLES écrites à la main"] --> S1["décisions"]
+    end
+    subgraph ML["Machine learning"]
+        EX["des EXEMPLES étiquetés<br/><small>2800 commandes + verdict connu</small>"] --> APP["entraînement<br/><small>scikit-learn cherche les<br/>meilleurs coefficients</small>"]
+        APP --> MOD["le MODÈLE :<br/>une fonction avec des<br/>coefficients appris"]
+        MOD --> S2["décisions sur des<br/>commandes JAMAIS VUES"]
+    end
+```
+
+Notre modèle est une **régression logistique**, le plus simple qui soit :
+une somme pondérée des 4 features, passée dans une fonction qui écrase le
+résultat entre 0 et 1 :
+
+```
+score = sigmoide( a*quantite + b*montant + c*ratio_prix + d*commandes_jour + e )
+```
+
+« Entraîner », c'est chercher les valeurs de `a, b, c, d, e` qui collent le
+mieux aux 2800 exemples. « Prédire », c'est appliquer cette formule à une
+commande nouvelle : un simple calcul, en microsecondes. Le score est une
+**probabilité de fraude** : 0.02 = presque sûrement normale, 0.97 = très
+suspecte ; au-dessus de 0.5, l'app affiche le verdict « suspecte ».
+
+### À quoi ressemble un modèle, physiquement ?
+
+À un **fichier**. Après l'entraînement, scikit-learn sérialise l'objet
+(les coefficients appris et la recette de normalisation) dans un fichier de
+quelques kilo-octets. C'est cet **artefact** que MLflow range dans MinIO,
+que l'application télécharge et garde en mémoire. Va le voir de tes yeux :
+console MinIO (localhost:9001) → bucket `mlflow` → le dossier d'un run →
+`model.pkl`. Tout le MLOps consiste à gérer le cycle de vie de ce petit
+fichier avec le même sérieux que du code.
+
+## 3. Le cycle de vie d'un modèle
 
 Un modèle de ML n'est pas un livrable figé, c'est un **produit périssable** :
 les données changent, le monde change, le modèle d'hier se dégrade. D'où un
@@ -51,7 +110,7 @@ code ne ré-entraîne rien. Chaque boucle a sa validation (revue de PR d'un
 côté, porte de qualité de l'autre) et son mécanisme de retour arrière
 (revert Git, bascule d'alias MLflow).
 
-## 2. Le projet et ses données
+## 4. Le projet et ses données
 
 Le producer du bloc 6 accepte désormais `--anomalies 0.05` : 5 % des
 commandes sont frauduleuses (quantités de razzia, prix cassés), et portent
@@ -78,10 +137,22 @@ au prix médian du produit, nombre de commandes du client dans la journée.
     modèle : c'est elle qui manque le plus souvent en entreprise, pas
     l'algorithme.
 
-## 3. MLflow : la mémoire et le registre des modèles
+## 5. MLflow : la mémoire et le registre des modèles
 
-Sans outillage, les modèles s'appellent `model_final_v2_VRAI.pkl` et
-personne ne sait lequel tourne. **MLflow** apporte deux choses :
+Sans outillage, les modèles s'appellent `model_final_v2_VRAI.pkl`,
+traînent sur des postes de travail, et personne ne sait lequel tourne en
+production ni avec quelles données il a été entraîné. **MLflow** est
+l'outil standard qui résout ce chaos. Retiens l'image : un **cahier
+d'expériences** et une **étagère de modèles**.
+
+- Le cahier (**tracking**) : chaque entraînement y consigne tout : quand,
+  avec quels réglages, sur combien de lignes, pour quel score. Six mois
+  plus tard, on peut répondre à « pourquoi ce modèle décide-t-il ça ? ».
+- L'étagère (**registre**) : chaque fichier-modèle y est rangé avec un
+  numéro de version, et une étiquette `champion` désigne celui que la
+  production doit servir. Déployer un modèle = déplacer l'étiquette.
+
+Plus précisément :
 
 - Le **tracking** : chaque exécution d'entraînement (un *run*) enregistre
   ses paramètres, ses métriques et ses artefacts (le modèle sérialisé,
@@ -111,7 +182,7 @@ Aucun identifiant. À explorer :
 - **Models → score-risque** : les versions, et l'alias `champion` qui
   matérialise « ce qui est en production ».
 
-## 4. Entraîner, évaluer, promouvoir
+## 6. Entraîner, évaluer, promouvoir
 
 Deux scripts dans `exercices/bloc11/entrainement/`, à lire avant de lancer :
 
@@ -134,7 +205,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python promouvoir.py   # PROMU : la version 1 est le nouveau champion
 ```
 
-## 5. Le service : une petite app web en production
+## 7. Le service : une petite app web en production
 
 `exercices/bloc11-app/` est un dépôt applicatif complet, comme
 `bloc4-app` : FastAPI (`main.py`), Dockerfile, manifests `deploy/`, workflow
@@ -162,12 +233,41 @@ git push -u origin main            # CI : build + push + commit GitOps
 kubectl apply -f infra/argocd/bloc11-app.yaml   # ArgoCD prend le relais
 ```
 
-L'application est servie sur **http://localhost:8088** (le NodePort 30080,
-libéré de l'exercice du bloc 3 : `kubectl delete namespace bloc3`). Ouvre le
-formulaire, saisis une commande normale puis une commande absurde (45 écrans
-à 15 euros, 9e commande du jour) et regarde le verdict changer.
+### À quoi sert le formulaire, et comment l'utiliser
 
-## 6. Le ré-entraînement orchestré
+Dans la vraie vie, personne ne saisit les commandes dans un formulaire : le
+site e-commerce appellerait `POST /predire` automatiquement à chaque
+commande, et déciderait (bloquer, demander une vérification, laisser
+passer) selon le score. Le formulaire est la **vitrine de démonstration**
+qui te fait jouer le rôle du site marchand.
+
+Mode d'emploi, sur **http://localhost:8088** (le NodePort 30080, libéré de
+l'exercice du bloc 3 : `kubectl delete namespace bloc3`) :
+
+1. **Produit** : le choix fixe le prix « normal » de référence.
+2. **Quantité** et **prix unitaire** : les valeurs de la commande à
+   évaluer. Le modèle comparera ce prix au prix normal (le `ratio_prix`).
+3. **Commandes de ce client aujourd'hui** : simule l'historique récent du
+   client (une rafale de commandes est un signal de fraude).
+4. Clique **Évaluer la commande** : le score (en %), le verdict, et la
+   **version du modèle** qui a répondu s'affichent.
+
+Essaie ces deux scénarios et observe la bascule :
+
+| Scénario | Saisie | Résultat attendu |
+|---|---|---|
+| Client ordinaire | 2 claviers à 49,90, 1re commande du jour | score ~0 %, NORMALE |
+| Razzia à prix cassé | 45 écrans à 15,00 (au lieu de 179), 9e commande | score ~100 %, SUSPECTE |
+
+L'équivalent de ce que ferait le site marchand, en ligne de commande :
+
+```bash
+curl -X POST http://localhost:8088/predire -H 'Content-Type: application/json' \
+  -d '{"produit":"ecran","quantite":45,"prix_unitaire":15.0,"commandes_client_jour":9}'
+# {"score":1.0,"verdict":"suspecte","version_modele":"3"}
+```
+
+## 8. Le ré-entraînement orchestré
 
 Le DAG `entrainement_score_risque` (dans `exercices/bloc11/dags/`) boucle la
 boucle modèle, chaque jour :
@@ -190,7 +290,7 @@ scheduler est attaché au réseau **kind** pour joindre l'app
 (`tuto-control-plane:30080`), et `MLFLOW_TRACKING_URI` pointe sur
 `mlflow:5000` via le réseau lake.
 
-## 7. Le monitoring du modèle : la dérive
+## 9. Le monitoring du modèle : la dérive
 
 Un modèle en production se dégrade en silence : le monde change
 (**dérive des données** : les entrées ne ressemblent plus à l'entraînement)
