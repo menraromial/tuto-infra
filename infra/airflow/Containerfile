@@ -10,4 +10,5 @@ RUN pip install --no-cache-dir \
     "confluent-kafka==2.*" \
     "pyarrow==21.*" \
     "dbt-duckdb==1.9.*" \
-    "minio==7.*"
+    "minio==7.*" \
+    "statsd==4.*"

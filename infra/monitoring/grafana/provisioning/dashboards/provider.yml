@@ -1,0 +1,9 @@
+# Provider : charge tous les dashboards JSON de ce dossier au démarrage.
+apiVersion: 1
+
+providers:
+  - name: tuto
+    folder: Pipeline
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards

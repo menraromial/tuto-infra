@@ -1,0 +1,46 @@
+# Règles d'alerte évaluées en continu par Prometheus.
+groups:
+  - name: pipeline-data
+    rules:
+      # L'alerte de l'exercice final : un run du DAG a échoué.
+      # Le compteur airflow_dagrun_duration_failed_count n'augmente que
+      # lorsqu'un run se termine en échec.
+      # Piège PromQL déjoué : increase() ne détecte pas le PREMIER échec,
+      # car la série naît directement à 1 (aucun point antérieur dans la
+      # fenêtre : accroissement nul). La 2e clause attrape ce cas : la série
+      # existe maintenant mais n'existait pas il y a 30 minutes.
+      - alert: DagRunEchoue
+        expr: >
+          (airflow_dagrun_duration_failed_count
+            - (airflow_dagrun_duration_failed_count offset 30m)) > 0
+          or
+          (airflow_dagrun_duration_failed_count
+            unless airflow_dagrun_duration_failed_count offset 30m) > 0
+        labels:
+          severity: critique
+        annotations:
+          summary: "Un run du DAG {{ $labels.dag_id }} a échoué"
+          description: "Au moins un run a échoué dans les 30 dernières minutes. Voir les logs dans l'UI Airflow (localhost:8093)."
+
+      # Le lag du consumer : des messages s'accumulent sans être archivés.
+      - alert: LagConsumerEleve
+        expr: >
+          sum(redpanda_kafka_max_offset{redpanda_topic="commandes"})
+          - sum(redpanda_kafka_consumer_group_committed_offset{redpanda_group="archiveur-parquet"})
+          > 1000
+        for: 10m
+        labels:
+          severity: avertissement
+        annotations:
+          summary: "Le consumer archiveur-parquet accumule du retard"
+          description: "Plus de 1000 messages en attente depuis 10 minutes : le pipeline ne suit plus le rythme."
+
+      # La machine sature (plus de 90 % de RAM pendant 5 minutes).
+      - alert: MemoireSaturee
+        expr: >
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: avertissement
+        annotations:
+          summary: "Mémoire de la machine au-dessus de 90 %"

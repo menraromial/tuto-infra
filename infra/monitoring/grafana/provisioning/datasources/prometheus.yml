@@ -1,0 +1,11 @@
+# Datasource provisionnée : Grafana sait où trouver Prometheus dès le
+# premier démarrage, sans clic dans l'interface.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: PROM
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true

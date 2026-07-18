@@ -1,0 +1,30 @@
+# Configuration Prometheus : QUI scruter, à quelle fréquence,
+# et quelles règles d'alerte évaluer.
+global:
+  scrape_interval: 15s      # une mesure toutes les 15 s
+  evaluation_interval: 15s  # évaluation des alertes toutes les 15 s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Prometheus se surveille lui-même
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # La machine (CPU, RAM, disque) via node-exporter
+  - job_name: machine
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # Redpanda expose nativement ses métriques Prometheus
+  - job_name: redpanda
+    metrics_path: /public_metrics
+    static_configs:
+      - targets: ["redpanda:9644"]
+
+  # Airflow, via le pont statsd-exporter
+  - job_name: airflow
+    static_configs:
+      - targets: ["statsd-exporter:9102"]

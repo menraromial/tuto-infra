@@ -1,0 +1,68 @@
+name: monitoring
+
+services:
+  # Prometheus : collecte (scrape) et stocke les métriques, évalue les alertes.
+  prometheus:
+    image: docker.io/prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prom-data:/prometheus
+    ports:
+      - "9095:9090"   # http://localhost:9095 (9090 déjà pris sur la machine)
+    networks:
+      - default
+      - ingestion     # pour scruter redpanda:9644
+
+  # Node exporter : les métriques de la machine (CPU, RAM...).
+  # En Podman rootless on ne peut pas monter "/" ; sans montage, /proc/stat
+  # et /proc/meminfo restent ceux de la machine : CPU et RAM sont corrects
+  # (les métriques de disque, elles, verraient le conteneur).
+  node-exporter:
+    image: docker.io/prom/node-exporter:latest
+    container_name: node-exporter
+
+  # Pont Airflow -> Prometheus : Airflow émet ses métriques en StatsD (UDP),
+  # cet exporter les traduit au format Prometheus.
+  statsd-exporter:
+    image: docker.io/prom/statsd-exporter:latest
+    container_name: statsd-exporter
+    command:
+      - --statsd.mapping-config=/etc/statsd/mapping.yml
+    volumes:
+      - ./statsd/mapping.yml:/etc/statsd/mapping.yml:ro
+    networks:
+      - default
+      - airflow       # les composants Airflow lui envoient leurs métriques
+
+  # Grafana : les dashboards. Datasource et dashboard sont PROVISIONNÉS
+  # depuis des fichiers versionnés : le monitoring aussi est du code.
+  grafana:
+    image: docker.io/grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: grafana12345
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"   # http://localhost:3001 (3000 est pris par Gitea)
+    depends_on:
+      - prometheus
+
+networks:
+  ingestion:
+    external: true
+    name: ingestion_default
+  airflow:
+    external: true
+    name: airflow_default
+
+volumes:
+  prom-data:
+  grafana-data:

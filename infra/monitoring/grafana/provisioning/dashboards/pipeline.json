@@ -1,0 +1,207 @@
+{
+ "uid": "pipeline-sante",
+ "title": "Santé du pipeline de données",
+ "tags": [
+  "tuto",
+  "bloc10"
+ ],
+ "timezone": "browser",
+ "refresh": "30s",
+ "time": {
+  "from": "now-3h",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "id": 1,
+   "title": "CPU machine (%)",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 4,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+     "refId": "A",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 2,
+   "title": "RAM machine (%)",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 0,
+    "w": 4,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+     "refId": "A",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 3,
+   "title": "Échecs de runs DAG (24 h)",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 0,
+    "w": 4,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "sum(increase(airflow_dagrun_duration_failed_count[24h])) or vector(0)",
+     "refId": "A",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 4,
+   "title": "Lag du consumer archiveur-parquet (messages en attente)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "sum(redpanda_kafka_max_offset{redpanda_topic=\"commandes\"}) - sum(redpanda_kafka_consumer_group_committed_offset{redpanda_group=\"archiveur-parquet\"})",
+     "refId": "A",
+     "legendFormat": "lag"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 5,
+   "title": "Débit du topic commandes (messages/s)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "sum(rate(redpanda_kafka_max_offset{redpanda_topic=\"commandes\"}[5m]))",
+     "refId": "A",
+     "legendFormat": "production"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 6,
+   "title": "Durée des runs du DAG (s)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 8,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "airflow_dagrun_duration_success{dag_id=\"pipeline_commandes\", quantile=\"0.99\"}",
+     "refId": "A",
+     "legendFormat": "succès (p99)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 7,
+   "title": "Durée par tâche (p99, s)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 8,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "airflow_task_duration{dag_id=\"pipeline_commandes\", quantile=\"0.99\"}",
+     "refId": "A",
+     "legendFormat": "{{task_id}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   }
+  }
+ ],
+ "schemaVersion": 39
+}

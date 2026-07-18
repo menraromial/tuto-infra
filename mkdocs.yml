@@ -42,6 +42,7 @@ nav:
       - "Bloc 7 : Lake & warehouse (MinIO, dbt)": blocs/bloc7-lake-warehouse.md
       - "Bloc 8 : Pipelines, la vue d'ensemble": blocs/bloc8-pipelines.md
       - "Bloc 9 : Orchestration (Airflow)": blocs/bloc9-orchestration.md
+      - "Bloc 10 : Monitoring (Prometheus, Grafana)": blocs/bloc10-monitoring.md
 
 markdown_extensions:
   - admonition
