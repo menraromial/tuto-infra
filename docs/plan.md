@@ -218,6 +218,28 @@ Exercice final : un dashboard Grafana qui montre la sante du pipeline complet (t
 
 ---
 
+## Bloc 11 : Projet MLOps, du modele au deploiement continu
+
+Mise en place : la plateforme des blocs 3 a 10 au complet, plus MLflow (un conteneur) et scikit-learn.
+
+-  Le cycle de vie d'un modele : donnees, features, entrainement, evaluation, registre, service, monitoring
+-  Features en SQL avec dbt, labels a posteriori, split temporel
+-  MLflow : tracking des experiences, registre de modeles, alias champion
+-  Servir un modele : FastAPI, chargement a chaud, /metrics Prometheus
+-  Deploiement continu du service via Gitea Actions et ArgoCD (bloc 4)
+-  Re-entrainement orchestre par Airflow avec porte de qualite (bloc 9)
+-  Monitoring de modele : derive des scores, alerte (bloc 10)
+
+Ressources :
+- [Documentation MLflow](https://mlflow.org/docs/latest/index.html)
+- [scikit-learn, guide utilisateur](https://scikit-learn.org/stable/user_guide.html)
+- [FastAPI](https://fastapi.tiangolo.com/fr/)
+- Cours video gratuits : sur YouTube, "MLOps Course" de freeCodeCamp ; "Made With ML" (texte + exercices)
+
+Exercice final : changer le comportement des fraudeurs simules, constater la derive dans Grafana, laisser le re-entrainement quotidien s'adapter et verifier le nouveau modele dans l'application web, sans aucune intervention manuelle.
+
+---
+
 ## Le fil conducteur
 
 A la fin du parcours, tu as construit une mini plateforme data complete qui tourne sur ta machine : des evenements ingeres via Kafka, stockes en Parquet dans un lake MinIO, transformes avec dbt vers un warehouse en etoile, orchestres par Airflow deploye sur Kubernetes, provisionnes par Terraform et Ansible, livres par un pipeline CI/CD GitOps, et surveilles par Prometheus et Grafana. Le tout versionne dans Git et manipule au terminal. C'est exactement l'architecture qu'on retrouve en entreprise, en version reduite.

@@ -1,0 +1,4 @@
+scikit-learn==1.*
+mlflow==3.*
+pandas==2.*
+duckdb==1.*

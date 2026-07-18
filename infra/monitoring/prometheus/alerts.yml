@@ -35,6 +35,22 @@ groups:
           summary: "Le consumer archiveur-parquet accumule du retard"
           description: "Plus de 1000 messages en attente depuis 10 minutes : le pipeline ne suit plus le rythme."
 
+      # Dérive du modèle de scoring (bloc 11) : la part de commandes jugées
+      # suspectes s'éloigne durablement de la base (~5 %). Un modèle qui
+      # crie au loup sur 20 % du trafic signale un changement de
+      # comportement des données, pas une vague de fraude.
+      # (Fenêtres courtes pour le lab ; en production on élargit.)
+      - alert: DeriveScoreRisque
+        expr: >
+          sum(rate(app_predictions_total{verdict="suspecte"}[10m]))
+          / sum(rate(app_predictions_total[10m])) > 0.2
+        for: 2m
+        labels:
+          severity: avertissement
+        annotations:
+          summary: "Le modèle de score de risque dérive"
+          description: "Plus de 20 % des commandes sont jugées suspectes : vérifier les données entrantes et le dernier champion (MLflow, localhost:5002)."
+
       # La machine sature (plus de 90 % de RAM pendant 5 minutes).
       - alert: MemoireSaturee
         expr: >

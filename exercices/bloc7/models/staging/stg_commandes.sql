@@ -6,8 +6,11 @@
 
 with brut as (
 
+    -- union_by_name : les fichiers anciens et récents n'ont pas forcément
+    -- les mêmes colonnes (le champ signalement_fraude est apparu au
+    -- bloc 11) ; DuckDB aligne les schémas par nom de colonne.
     select *
-    from read_parquet('s3://lake/bronze/commandes/*.parquet')
+    from read_parquet('s3://lake/bronze/commandes/*.parquet', union_by_name = true)
 
 ),
 
@@ -30,7 +33,9 @@ select
     produit,
     quantite,
     prix_unitaire,
-    cast(horodatage as timestamptz) as horodate_a
+    cast(horodatage as timestamptz) as horodate_a,
+    -- Les commandes d'avant le bloc 11 n'ont pas de signalement : false.
+    coalesce(signalement_fraude, false) as signalement_fraude
 
 from dedoublonne
 where rang = 1

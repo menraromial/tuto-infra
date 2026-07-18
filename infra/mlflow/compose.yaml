@@ -1,0 +1,45 @@
+name: mlflow
+
+services:
+  mlflow:
+    image: localhost/tuto-mlflow:bloc11
+    container_name: mlflow
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      # L'historique des expériences et le registre : une base SQLite locale.
+      - --backend-store-uri=sqlite:////data/mlflow.db
+      # Les artefacts (les modèles) : dans le lake MinIO.
+      - --artifacts-destination=s3://mlflow/
+      # Le serveur proxifie les artefacts : les clients (entraînement, app)
+      # n'ont pas besoin des identifiants MinIO, seulement de l'URL MLflow.
+      - --serve-artifacts
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio12345
+      # MLflow 3 refuse les en-têtes Host inconnus (protection DNS rebinding).
+      # Les clients l'appellent sous deux noms : localhost (ta machine) et
+      # mlflow:5000 (conteneurs et pods du cluster).
+      MLFLOW_SERVER_ALLOWED_HOSTS: "localhost:5002,localhost:5000,127.0.0.1:5002,mlflow:5000"
+    ports:
+      - "5002:5000"   # http://localhost:5002 (5000 déjà pris sur la machine)
+    volumes:
+      - mlflow-data:/data
+    networks:
+      - default
+      - lake    # joindre minio:9000
+      - kind    # être joignable depuis les pods du cluster (mlflow:5000)
+
+networks:
+  lake:
+    external: true
+    name: lake_default
+  kind:
+    external: true
+    name: kind
+
+volumes:
+  mlflow-data:

@@ -11,4 +11,7 @@ RUN pip install --no-cache-dir \
     "pyarrow==21.*" \
     "dbt-duckdb==1.9.*" \
     "minio==7.*" \
-    "statsd==4.*"
+    "statsd==4.*" \
+    "scikit-learn==1.*" \
+    "mlflow==3.*" \
+    "pandas==2.*"

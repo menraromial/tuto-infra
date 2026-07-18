@@ -24,8 +24,11 @@ x-airflow-common: &airflow-common
     AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
     AIRFLOW__METRICS__STATSD_PORT: "9125"
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
+    # Registre de modèles (bloc 11) : joignable via le réseau "lake".
+    MLFLOW_TRACKING_URI: http://mlflow:5000
   volumes:
-    - ../../exercices/bloc9/dags:/opt/airflow/dags
+    - ../../exercices/bloc9/dags:/opt/airflow/dags/bloc9
+    - ../../exercices/bloc11/dags:/opt/airflow/dags/bloc11
     - ../../exercices:/opt/exercices
     - airflow-logs:/opt/airflow/logs
   depends_on:
@@ -82,6 +85,7 @@ services:
       - default
       - ingestion
       - lake
+      - kind      # bloc 11 : joindre l'app déployée (tuto-control-plane:30080)
 
   # Analyse les fichiers DAG et alimente la base de métadonnées.
   airflow-dag-processor:
@@ -97,6 +101,10 @@ networks:
   lake:
     external: true
     name: lake_default
+  # Réseau du cluster kind (bloc 3), pour joindre l'app du bloc 11 :
+  kind:
+    external: true
+    name: kind
 
 volumes:
   airflow-db-data:

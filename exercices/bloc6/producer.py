@@ -26,23 +26,40 @@ PRODUITS = [
 ]
 
 
-def fabrique_evenement() -> dict:
+def fabrique_evenement(taux_anomalies: float = 0.0) -> dict:
+    """Fabrique une commande normale, ou anormale avec probabilité donnée.
+
+    Les anomalies (bloc 11) simulent des fraudes : quantité aberrante ou
+    prix falsifié. Le champ signalement_fraude joue le rôle du signalement
+    a posteriori (client, analyste) qui sert de label d'entraînement ;
+    l'application de scoring ne le reçoit évidemment jamais en entrée.
+    """
     produit, prix = random.choice(PRODUITS)
+    quantite = random.randint(1, 5)
+    fraude = random.random() < taux_anomalies
+    if fraude:
+        if random.random() < 0.5:
+            quantite = random.randint(20, 60)          # razzia improbable
+        else:
+            prix = round(prix * random.uniform(0.03, 0.15), 2)  # prix cassé
     return {
         # Identifiant unique de l'évènement : c'est la clé de déduplication
         # qui permet à l'aval de rester idempotent malgré les doublons.
         "event_id": str(uuid.uuid4()),
         "client_id": f"c{random.randint(1, 5):03d}",
         "produit": produit,
-        "quantite": random.randint(1, 5),
+        "quantite": quantite,
         "prix_unitaire": prix,
         "horodatage": datetime.now(timezone.utc).isoformat(),
+        "signalement_fraude": fraude,
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--nombre", type=int, default=500)
+    parser.add_argument("--anomalies", type=float, default=0.0,
+                        help="proportion de commandes frauduleuses (bloc 11), ex: 0.05")
     args = parser.parse_args()
 
     producer = Producer({"bootstrap.servers": BROKERS})
@@ -55,7 +72,7 @@ def main() -> None:
             compteur["ok"] += 1
 
     for _ in range(args.nombre):
-        evt = fabrique_evenement()
+        evt = fabrique_evenement(args.anomalies)
         producer.produce(
             TOPIC,
             # La clé décide de la partition : un même client va toujours sur la

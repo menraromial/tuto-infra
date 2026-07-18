@@ -17,6 +17,7 @@ services:
     networks:
       - default
       - ingestion     # pour scruter redpanda:9644
+      - kind          # pour scruter l'app ML du bloc 11 (NodePort du nœud)
 
   # Node exporter : les métriques de la machine (CPU, RAM...).
   # En Podman rootless on ne peut pas monter "/" ; sans montage, /proc/stat
@@ -62,6 +63,9 @@ networks:
   airflow:
     external: true
     name: airflow_default
+  kind:
+    external: true
+    name: kind
 
 volumes:
   prom-data:

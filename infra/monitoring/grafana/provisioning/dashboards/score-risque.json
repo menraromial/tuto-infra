@@ -1,0 +1,125 @@
+{
+ "uid": "score-risque",
+ "title": "Modèle de score de risque (bloc 11)",
+ "tags": [
+  "tuto",
+  "bloc11"
+ ],
+ "timezone": "browser",
+ "refresh": "30s",
+ "time": {
+  "from": "now-1h",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "id": 1,
+   "title": "Part de commandes jugées suspectes (10 min)",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 6,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "sum(rate(app_predictions_total{verdict=\"suspecte\"}[10m])) / sum(rate(app_predictions_total[10m])) * 100",
+     "refId": "A",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 2,
+   "title": "Prédictions par verdict (par seconde)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 0,
+    "w": 18,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "sum by (verdict) (rate(app_predictions_total[5m]))",
+     "refId": "A",
+     "legendFormat": "{{verdict}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 3,
+   "title": "Score de risque moyen (10 min)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "rate(app_score_risque_sum[10m]) / rate(app_score_risque_count[10m])",
+     "refId": "A",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 4,
+   "title": "Latence de prédiction p95 (s)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.95, rate(app_latence_prediction_secondes_bucket[5m]))",
+     "refId": "A",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   }
+  }
+ ],
+ "schemaVersion": 39
+}

@@ -396,6 +396,16 @@ n'est nécessaire.
     Limites inotify trop basses : exécute `sudo bash scripts/setup-hote.sh`
     puis supprime le pod pour qu'il redémarre.
 
+??? failure "`ImagePullBackOff` après un redémarrage du nœud kind : `dial tcp 127.0.0.1:3000`"
+    Au redémarrage, Podman recopie le `/etc/hosts` de ta machine dans le
+    conteneur-nœud, y compris la ligne `127.0.0.1 gitea` : containerd tente
+    alors de joindre le registre sur sa propre boucle locale. Retire
+    l'entrée dans le nœud (le DNS du réseau kind prend le relais) :
+    ```bash
+    podman exec tuto-control-plane sh -c \
+      "grep -v '127.0.0.1.gitea' /etc/hosts > /tmp/h && cat /tmp/h > /etc/hosts"
+    ```
+
 ??? failure "Le pod applicatif reste en `ImagePullBackOff`"
     - Tag `:init` : normal tant que le premier run CI n'a pas réécrit le
       manifest ; attends la fin du run puis la synchro ArgoCD.

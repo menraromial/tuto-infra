@@ -14,6 +14,14 @@ fi
 
 kind create cluster --config cluster.yaml
 
+# Podman copie le /etc/hosts de la machine dans le conteneur-nœud : si la
+# machine associe "gitea" à 127.0.0.1 (bloc 4), le nœud essaierait de
+# joindre le registre sur sa propre boucle locale. On retire l'entrée,
+# le DNS du réseau kind donne la bonne adresse. (À refaire si le nœud
+# redémarre : voir le dépannage du bloc 4.)
+podman exec tuto-control-plane sh -c \
+  "grep -v '127.0.0.1.gitea' /etc/hosts > /tmp/h && cat /tmp/h > /etc/hosts" || true
+
 echo ">> Autorisation du registre HTTP gitea:3000 dans containerd..."
 podman exec tuto-control-plane mkdir -p '/etc/containerd/certs.d/gitea:3000'
 podman exec -i tuto-control-plane tee '/etc/containerd/certs.d/gitea:3000/hosts.toml' >/dev/null <<'EOF'

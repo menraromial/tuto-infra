@@ -28,3 +28,8 @@ scrape_configs:
   - job_name: airflow
     static_configs:
       - targets: ["statsd-exporter:9102"]
+
+  # L'application de scoring du bloc 11, via le NodePort du nœud kind
+  - job_name: app-score-risque
+    static_configs:
+      - targets: ["tuto-control-plane:30080"]

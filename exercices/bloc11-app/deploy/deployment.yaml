@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bloc11-app
+  namespace: bloc11
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bloc11-app
+  template:
+    metadata:
+      labels:
+        app: bloc11-app
+    spec:
+      containers:
+        - name: app
+          # Le tag est réécrit par le pipeline CI à chaque push (GitOps) :
+          image: gitea:3000/admin/bloc11-app:init
+          env:
+            # MLflow est joignable depuis le cluster : son conteneur est
+            # attaché au réseau "kind" (cf. infra/mlflow/compose.yaml).
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow:5000
+          ports:
+            - containerPort: 8000
+          livenessProbe:
+            httpGet:
+              path: /sante
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /sante
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi

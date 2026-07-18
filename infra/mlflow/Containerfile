@@ -1,0 +1,5 @@
+# Serveur MLflow + boto3 (nécessaire pour stocker les artefacts dans MinIO).
+# Construction : podman build -t localhost/tuto-mlflow:bloc11 infra/mlflow/
+FROM docker.io/library/python:3.12-slim
+RUN pip install --no-cache-dir "mlflow==3.*" boto3
+EXPOSE 5000

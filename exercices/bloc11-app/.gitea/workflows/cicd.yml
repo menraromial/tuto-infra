@@ -1,0 +1,33 @@
+name: cicd
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag = SHA court du commit
+        run: echo "TAG=${GITHUB_SHA:0:8}" >> "$GITHUB_ENV"
+
+      - name: Build de l'image
+        # DOCKER_BUILDKIT=0 : le démon derrière la socket est Podman (bloc 4).
+        run: DOCKER_BUILDKIT=0 docker build -t gitea:3000/admin/bloc11-app:$TAG .
+
+      - name: Push vers le registre Gitea
+        # Pas de "docker login" : voir le dépannage du bloc 4 (bug /auth).
+        run: |
+          mkdir -p ~/.docker
+          AUTH=$(printf 'admin:%s' '${{ secrets.REGISTRY_PASSWORD }}' | base64 -w0)
+          printf '{"auths":{"gitea:3000":{"auth":"%s"}}}' "$AUTH" > ~/.docker/config.json
+          docker push gitea:3000/admin/bloc11-app:$TAG
+
+      - name: Mise à jour du manifest (GitOps)
+        run: |
+          sed -i "s|\(image: gitea:3000/admin/bloc11-app:\).*|\1$TAG|" deploy/deployment.yaml
+          git config user.name "gitea-actions"
+          git config user.email "actions@gitea.local"
+          git commit -am "deploy: bloc11-app:$TAG [skip ci]"
+          git push
