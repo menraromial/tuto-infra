@@ -1,0 +1,97 @@
+name: airflow
+
+# Configuration commune à tous les composants Airflow (ancre YAML réutilisée).
+x-airflow-common: &airflow-common
+  image: localhost/tuto-airflow:bloc9
+  # Rootless Podman : "root" dans le conteneur = ton utilisateur sur l'hôte,
+  # donc les fichiers écrits dans les volumes montés t'appartiennent.
+  user: "0:0"
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    # Lab local : accès à l'UI sans login (SimpleAuthManager, tout le monde admin).
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+    # Secret partagé entre composants pour l'API d'exécution (lab uniquement).
+    AIRFLOW__API_AUTH__JWT_SECRET: "secret-de-lab-a-changer"
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    # Adresses des services vus DEPUIS les conteneurs Airflow :
+    KAFKA_BROKERS: redpanda:9092
+    S3_ENDPOINT: minio:9000
+  volumes:
+    - ../../exercices/bloc9/dags:/opt/airflow/dags
+    - ../../exercices:/opt/exercices
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  airflow-db:
+    image: docker.io/library/postgres:17-alpine
+    container_name: airflow-db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Initialise (ou migre) la base de métadonnées, puis se termine.
+  airflow-init:
+    image: localhost/tuto-airflow:bloc9
+    user: "0:0"
+    environment: *airflow-env
+    command: bash -c "airflow db migrate"
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+  # L'interface web et l'API.
+  airflow-apiserver:
+    <<: *airflow-common
+    container_name: airflow-apiserver
+    command: api-server
+    ports:
+      - "8093:8080"   # http://localhost:8093
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v2/version"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  # Le cerveau : décide quoi lancer et quand. Avec LocalExecutor, les tâches
+  # s'exécutent DANS ce conteneur : il est donc attaché aux réseaux des
+  # stacks ingestion (Kafka) et lake (MinIO).
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    networks:
+      - default
+      - ingestion
+      - lake
+
+  # Analyse les fichiers DAG et alimente la base de métadonnées.
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: airflow-dag-processor
+    command: dag-processor
+
+networks:
+  # Réseaux des stacks des blocs 6 et 7, déclarés ailleurs :
+  ingestion:
+    external: true
+    name: ingestion_default
+  lake:
+    external: true
+    name: lake_default
+
+volumes:
+  airflow-db-data:
+  airflow-logs:

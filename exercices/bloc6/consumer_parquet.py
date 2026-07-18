@@ -7,6 +7,7 @@ Usage : python consumer_parquet.py [--lot 200]
 """
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,7 +15,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from confluent_kafka import Consumer
 
-BROKERS = "localhost:19092"
+# Surchargeable par variable d'environnement (cf. bloc 9, Airflow).
+BROKERS = os.environ.get("KAFKA_BROKERS", "localhost:19092")
 TOPIC = "commandes"
 DOSSIER_SORTIE = Path(__file__).parent / "data"
 

@@ -4,13 +4,16 @@ Usage : python producer.py [--nombre 500]
 """
 import argparse
 import json
+import os
 import random
 import uuid
 from datetime import datetime, timezone
 
 from confluent_kafka import Producer
 
-BROKERS = "localhost:19092"
+# Surchargeable par variable d'environnement : depuis un conteneur (Airflow,
+# bloc 9), le broker s'appelle "redpanda:9092" et non "localhost:19092".
+BROKERS = os.environ.get("KAFKA_BROKERS", "localhost:19092")
 TOPIC = "commandes"
 
 PRODUITS = [

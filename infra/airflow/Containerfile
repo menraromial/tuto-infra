@@ -1,0 +1,13 @@
+# Image Airflow enrichie des bibliothèques du pipeline des blocs 6-7.
+# Construction :  podman build -t localhost/tuto-airflow:bloc9 infra/airflow/
+FROM docker.io/apache/airflow:3.3.0
+
+# Les dépendances de NOS tâches (pas d'Airflow lui-même) :
+# - confluent-kafka + pyarrow : le consumer du bloc 6
+# - dbt-duckdb : les transformations du bloc 7
+# - minio : le dépôt des fichiers dans le bucket bronze
+RUN pip install --no-cache-dir \
+    "confluent-kafka==2.*" \
+    "pyarrow==21.*" \
+    "dbt-duckdb==1.9.*" \
+    "minio==7.*"
