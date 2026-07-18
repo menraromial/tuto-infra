@@ -60,6 +60,28 @@ commande nouvelle : un simple calcul, en microsecondes. Le score est une
 **probabilité de fraude** : 0.02 = presque sûrement normale, 0.97 = très
 suspecte ; au-dessus de 0.5, l'app affiche le verdict « suspecte ».
 
+!!! question "À quel moment une commande est-elle considérée frauduleuse ?"
+    Distingue bien deux moments et deux mots :
+
+    1. **« Frauduleuse », c'est la réalité.** Dans notre lab, elle est
+       décidée à la génération : le producer tire au sort ~5 % de commandes
+       et leur donne un comportement de fraude (quantité de razzia 20-60,
+       ou prix à 3-15 % du catalogue), avec le champ `signalement_fraude`
+       qui simule le signalement **a posteriori** (litige, analyste).
+       C'est le label d'entraînement ; le modèle ne le voit jamais au
+       moment de prédire.
+    2. **« Suspecte », c'est le jugement du modèle.** À la prédiction,
+       l'app applique un seuil : score >= 0.5 donne le verdict
+       « suspecte ». Le modèle n'utilise aucune règle écrite : il a appris
+       des exemples que prix cassés, quantités énormes et rafales de
+       commandes ressemblent aux commandes signalées.
+
+    Le système ne déclare donc jamais une fraude : il **signale une
+    suspicion**, qui peut être fausse dans les deux sens. Et le seuil de
+    0.5 est un **choix métier** : l'abaisser attrape plus de fraudes mais
+    dérange plus de clients honnêtes ; le remonter fait l'inverse. En
+    production, on le règle selon le coût relatif des deux erreurs.
+
 ### À quoi ressemble un modèle, physiquement ?
 
 À un **fichier**. Après l'entraînement, scikit-learn sérialise l'objet
